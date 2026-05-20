@@ -1,0 +1,31 @@
+{
+  "name": "@hrnt/astro-assistant",
+  "version": "0.1.0",
+  "description": "Shared AI assistant component for the HRNT ecosystem",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./store": "./src/store.ts",
+    "./AstroDock": "./src/AstroDock.tsx",
+    "./AstroDockContext": "./src/AstroDockContext.tsx",
+    "./strings": "./src/strings.ts",
+    "./AstroIcon": "./src/AstroIcon.tsx",
+    "./astro-assistant.css": "./src/astro-assistant.css",
+    "./knowledge": "./src/knowledge/index.ts",
+    "./api": "./src/api.ts",
+    "./cookies": "./src/cookies.ts",
+    "./types": "./src/types.ts"
+  },
+  "files": [
+    "src"
+  ],
+  "peerDependencies": {
+    "lucide-react": ">=0.300.0",
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0",
+    "zustand": ">=4.0.0"
+  },
+  "license": "UNLICENSED",
+  "private": true
+}
