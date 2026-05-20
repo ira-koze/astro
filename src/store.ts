@@ -1,4 +1,4 @@
-import { create } from "zustand";
+﻿import { create } from "zustand";
 import type { AstroDockGeom, AstroDockMode, AstroLink, AstroMessage, AstroProductContext, AstroSite } from "./types";
 import { getAstroOff, setAstroOff, getAstroDockGeom, setAstroDockGeom } from "./cookies";
 import { sendAstroChat, sendAstroFeedback } from "./api";
@@ -142,6 +142,8 @@ export function createAstroStore(
       if (!q || get().loading) return;
       const { productContext, selectedContext, site, cartItems } = get();
 
+      // Extract history BEFORE adding current question to avoid duplication ΓÇö
+      // the current question is sent separately as `question` in the request.
       const recentMessages = get().messages.slice(-12).map((m) => ({
         role: m.role as "user" | "assistant",
         text: m.text,

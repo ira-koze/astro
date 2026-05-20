@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useMemo, useRef } from "react";
+﻿import React, { createContext, useContext, useMemo, useRef } from "react";
 import { createAstroStore } from "./store";
 import type { AstroSite } from "./types";
 import { DEFAULT_STRINGS, DEFAULT_CHIPS, DEFAULT_PRODUCT_CHIPS } from "./strings";
@@ -62,7 +62,9 @@ const defaultRenderImage = ({ src, alt, className }: RenderImageProps) => (
 );
 
 export interface AstroDockProviderProps {
+  /** Pass an existing store to reuse it across components (e.g. from a module-level createAstroStore call). */
   store?: AstroStoreHook;
+  /** Required when store is not provided. */
   site?: AstroSite;
   apiEndpoint?: string;
   trackEvent?: (event: string, properties?: Record<string, unknown>) => void;
@@ -120,6 +122,8 @@ export function AstroDockProvider({
       shouldTriggerHelp,
       dismissHelp,
     }),
+    // store is stable (created once), no need to include in deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [store, t, tp, renderLink, renderImage, addToCart, formatPrice, aboutHref, chips, productChips, shouldTriggerHelp, dismissHelp],
   );
 

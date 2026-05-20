@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+﻿import React, { useEffect, useRef, useState } from "react";
 import { GripVertical, Maximize2, Minimize2, MoreVertical, Send, ShoppingCart, ThumbsDown, ThumbsUp, X } from "lucide-react";
 import { AstroIcon } from "./AstroIcon";
 import { useAstroDockContext } from "./AstroDockContext";
@@ -152,7 +152,7 @@ function renderMessageText(
 
     const raw = lines[i];
     const bulletMatch: RegExpMatchArray | null =
-      t.match(/^[-•*]\s+(.+)/) ??
+      t.match(/^[-ΓÇó*]\s+(.+)/) ??
       (!t.match(/^\d+[.)]/) && raw.startsWith("    ") ? raw.match(/^ {4}(.+)/) : null);
     if (bulletMatch) {
       if (listBuf?.type !== "ul") { flushList(); listBuf = { type: "ul", items: [] }; }
@@ -265,6 +265,7 @@ export const AstroDock: React.FC = () => {
     return () => window.removeEventListener("keydown", handler);
   }, [open, closeAstro]);
 
+  // Friction reduction: trigger Astro after persistent browsing without action
   useEffect(() => {
     if (off || open) return;
     if (shouldTriggerHelp?.()) {
@@ -279,6 +280,7 @@ export const AstroDock: React.FC = () => {
     }
   }, [off, open, openAstro, shouldTriggerHelp, dismissHelp, store]);
 
+  // Global highlight-to-Astro
   useEffect(() => {
     if (off) return;
     const handler = () => {
@@ -339,6 +341,7 @@ export const AstroDock: React.FC = () => {
     window.addEventListener("pointerup", endDrag);
   };
 
+  // Don't render on admin routes
   if (typeof window !== "undefined" && window.location.pathname.startsWith("/admin")) return null;
 
   if (!mounted) return null;
@@ -395,13 +398,13 @@ export const AstroDock: React.FC = () => {
             width: 320,
             height: "calc(100dvh - 112px)",
           }
-        : {
-            insetInlineStart: 16,
-            bottom: 16,
-            top: "auto",
-            width: "min(360px, calc(100vw - 32px))",
-            height: "min(70dvh, 560px)",
-          };
+      : {
+          insetInlineStart: 16,
+          bottom: 16,
+          top: "auto",
+          width: "min(360px, calc(100vw - 32px))",
+          height: "min(70dvh, 560px)",
+        };
 
   return (
     <>

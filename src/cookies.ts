@@ -1,14 +1,17 @@
-const DOMAIN = ".irakozehornet.com";
+﻿const DOMAIN = ".irakozehornet.com";
 const COOKIE_NAME = "hrnt_astro_off";
 const LOCAL_KEY = "hrnt_astro_off";
 
 /** Read the off state from cross-domain cookie, falling back to localStorage */
 export function getAstroOff(): boolean {
   if (typeof window === "undefined") return false;
+  // Check cookie first (cross-domain)
   const cookieMatch = document.cookie.match(/(?:^|;\s*)hrnt_astro_off=([^;]*)/);
   if (cookieMatch) return cookieMatch[1] === "yes";
+  // Fallback to localStorage for backward compat
   const local = localStorage.getItem(LOCAL_KEY);
   if (local === "yes") {
+    // Migrate to cookie
     setAstroOffCookie(true);
     localStorage.removeItem(LOCAL_KEY);
     return true;
@@ -20,6 +23,7 @@ export function getAstroOff(): boolean {
 export function setAstroOff(off: boolean): void {
   if (typeof window === "undefined") return;
   setAstroOffCookie(off);
+  // Also clear localStorage if migrating
   localStorage.removeItem(LOCAL_KEY);
 }
 
