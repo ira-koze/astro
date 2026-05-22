@@ -257,12 +257,25 @@ export function createAstroStore(
           },
           get().apiEndpoint,
         );
-      } catch (err) {
-        console.error("[astro-stream] Error:", err instanceof Error ? err.message : err);
-        updateLastAssistant(() => ({
-          role: "assistant",
-          text: "I can't reach the AI service right now. Please try again in a moment.",
-        }));
+      } catch (streamErr) {
+        console.error("[astro-stream] Stream failed, falling back to non-streaming:", streamErr instanceof Error ? streamErr.message : streamErr);
+        try {
+          const res = await sendAstroChat(request, get().apiEndpoint);
+          updateLastAssistant(() => ({
+            role: "assistant",
+            text: res.answer,
+            links: res.links || [],
+            followUps: res.unavailable ? [] : (res.followUps || []),
+            actions: res.unavailable ? [] : (res.actions || []),
+            showAddToCart: res.unavailable ? false : (res.showAddToCart ?? false),
+          }));
+          set({ selectedContext: "" });
+        } catch {
+          updateLastAssistant(() => ({
+            role: "assistant",
+            text: "I can't reach the AI service right now. Please try again in a moment.",
+          }));
+        }
       } finally {
         set({ loading: false, agentStatus: null });
       }
