@@ -1,20 +1,11 @@
 ﻿import { create } from "zustand";
 import type { AstroDockGeom, AstroDockMode, AstroLink, AstroMessage, AstroProductContext, AstroSite } from "./types";
-import { getAstroOff, setAstroOff, getAstroDockGeom, setAstroDockGeom } from "./cookies";
-import { sendAstroChat, sendAstroFeedback } from "./api";
+import { getAstroOff, setAstroOff, getAstroDockGeom, setAstroDockGeom, getOrCreateConversationId, resetConversationId } from "./cookies";
+import { sendAstroChat, sendAstroFeedback, streamAstroChat } from "./api";
 
 const DEFAULT_DOCK: AstroDockGeom = { side: "left", x: 16, y: 96, width: 400, mode: "collapsed" };
 
-const getConversationId = () => {
-  if (typeof window === "undefined") return "server";
-  const key = "hrnt_astro_conversation_id";
-  let id = sessionStorage.getItem(key);
-  if (!id) {
-    id = `astro_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-    sessionStorage.setItem(key, id);
-  }
-  return id;
-};
+const getConversationId = () => getOrCreateConversationId();
 
 const inferPageKind = (pathname: string, hasProduct: boolean): string => {
   if (hasProduct) return "product";
@@ -34,6 +25,8 @@ export interface AstroStoreState {
   open: boolean;
   off: boolean;
   loading: boolean;
+  streaming: boolean;
+  agentStatus: string | null;
   dockMode: AstroDockMode;
   messages: AstroMessage[];
   productContext: AstroProductContext | null;
@@ -76,6 +69,8 @@ export function createAstroStore(
     open: false,
     off: false,
     loading: false,
+    streaming: false,
+    agentStatus: null,
     dockMode: "collapsed",
     messages: [],
     productContext: null,
@@ -128,7 +123,10 @@ export function createAstroStore(
       setAstroDockGeom(geom);
     },
 
-    clearMessages: () => set({ messages: [], feedbackStatus: "idle" }),
+    clearMessages: () => {
+      resetConversationId();
+      set({ messages: [], feedbackStatus: "idle" });
+    },
 
     setOff: (off) => {
       setAstroOff(off);
@@ -142,90 +140,130 @@ export function createAstroStore(
       if (!q || get().loading) return;
       const { productContext, selectedContext, site, cartItems } = get();
 
-      // Extract history BEFORE adding current question to avoid duplication ΓÇö
-      // the current question is sent separately as `question` in the request.
       const recentMessages = get().messages.slice(-12).map((m) => ({
         role: m.role as "user" | "assistant",
         text: m.text,
       }));
 
       set((s) => ({
-        messages: [...s.messages, { role: "user", text: q }],
+        messages: [...s.messages, { role: "user", text: q }, { role: "assistant", text: "" }],
         loading: true,
+        streaming: false,
+        agentStatus: "thinking",
         feedbackStatus: "idle",
       }));
 
+      const pathnameHint = typeof window !== "undefined" ? window.location.pathname : "";
+      const pageKind = productContext?.pageKind || inferPageKind(pathnameHint, Boolean(productContext));
+      const detectedLocale = (() => {
+        const match = pathnameHint.match(/^\/([a-z]{2,3}(?:-[A-Z]+)?)\//);
+        return match ? match[1] : "en";
+      })();
+
+      get().trackEvent?.("astro_question", { question: q.slice(0, 100), site, pageKind });
+
+      const contextForRequest = selectedContext;
+      const request = {
+        question: q,
+        locale: detectedLocale,
+        site,
+        conversationId: getConversationId(),
+        messages: recentMessages.length > 0 ? recentMessages : undefined,
+        cartItems: cartItems && cartItems.length > 0 ? cartItems.slice(0, 10) : undefined,
+        productContext: productContext
+          ? {
+              productId: productContext.productId,
+              name: productContext.name,
+              slug: productContext.slug,
+              category: productContext.category,
+              description: productContext.description,
+              selectedContext: contextForRequest,
+              specs: productContext.specs,
+              price: productContext.price,
+              regularPrice: productContext.regularPrice,
+              intentContext: productContext.intentContext,
+              relatedProducts: productContext.relatedProducts,
+              pageKind,
+              pathnameHint,
+            }
+          : {
+              name: "HRNT",
+              category: site,
+              selectedContext: contextForRequest,
+              pageKind,
+              pathnameHint,
+            },
+      };
+
+      const updateLastAssistant = (updater: (msg: AstroMessage) => AstroMessage) => {
+        set((s) => {
+          const msgs = [...s.messages];
+          const last = msgs.length - 1;
+          if (last >= 0 && msgs[last].role === "assistant") {
+            msgs[last] = updater(msgs[last]);
+          }
+          return { messages: msgs };
+        });
+      };
+
       try {
-        const pathnameHint = typeof window !== "undefined" ? window.location.pathname : "";
-        const pageKind = productContext?.pageKind || inferPageKind(pathnameHint, Boolean(productContext));
-        const detectedLocale = (() => {
-          const match = pathnameHint.match(/^\/([a-z]{2,3}(?:-[A-Z]+)?)\//);
-          return match ? match[1] : "en";
-        })();
-
-        get().trackEvent?.("astro_question", { question: q.slice(0, 100), site, pageKind });
-
-        const contextForRequest = selectedContext;
-        const res = await sendAstroChat(
-          {
-            question: q,
-            locale: detectedLocale,
-            site,
-            messages: recentMessages.length > 0 ? recentMessages : undefined,
-            cartItems: cartItems && cartItems.length > 0 ? cartItems.slice(0, 10) : undefined,
-            productContext: productContext
-              ? {
-                  productId: productContext.productId,
-                  name: productContext.name,
-                  slug: productContext.slug,
-                  category: productContext.category,
-                  description: productContext.description,
-                  selectedContext: contextForRequest,
-                  specs: productContext.specs,
-                  price: productContext.price,
-                  regularPrice: productContext.regularPrice,
-                  intentContext: productContext.intentContext,
-                  relatedProducts: productContext.relatedProducts,
-                  pageKind,
-                  pathnameHint,
-                }
-              : {
-                  name: "HRNT",
-                  category: site,
-                  selectedContext: contextForRequest,
-                  pageKind,
-                  pathnameHint,
-                },
+        await streamAstroChat(
+          request,
+          (event) => {
+            switch (event.type) {
+              case "token":
+                if (!get().streaming) set({ streaming: true, agentStatus: null });
+                updateLastAssistant((msg) => ({ ...msg, text: (msg.text || "") + event.content }));
+                break;
+              case "agentStatus":
+                set({ agentStatus: event.status });
+                break;
+              case "revision":
+                updateLastAssistant((msg) => ({ ...msg, text: event.answer }));
+                break;
+              case "handoff":
+                updateLastAssistant((msg) => ({ ...msg, handoffMessage: event.message }));
+                break;
+              case "done":
+                updateLastAssistant((msg) => ({
+                  ...msg,
+                  text: event.answer,
+                  followUps: event.followUps || [],
+                  links: event.links || [],
+                  actions: event.actions || [],
+                  showAddToCart: event.showAddToCart ?? false,
+                }));
+                set({ selectedContext: "", streaming: false, agentStatus: null });
+                break;
+              case "replace":
+                updateLastAssistant((msg) => ({
+                  ...msg,
+                  text: event.answer,
+                  followUps: event.followUps || [],
+                  links: event.links || [],
+                  actions: event.actions || [],
+                  showAddToCart: event.showAddToCart ?? false,
+                }));
+                set({ selectedContext: "", streaming: false, agentStatus: null });
+                break;
+              case "error":
+                updateLastAssistant(() => ({
+                  role: "assistant",
+                  text: "I can't reach the AI service right now. Please try again in a moment.",
+                }));
+                set({ streaming: false, agentStatus: null });
+                break;
+            }
           },
           get().apiEndpoint,
         );
-
-        set((s) => ({
-          messages: [
-            ...s.messages,
-            {
-              role: "assistant",
-              text: res.answer,
-              links: res.links || [],
-              followUps: res.unavailable ? [] : (res.followUps || []),
-              actions: res.unavailable ? [] : (res.actions || []),
-              showAddToCart: res.unavailable ? false : (res.showAddToCart ?? false),
-            },
-          ],
-          selectedContext: "",
-        }));
       } catch {
-        set((s) => ({
-          messages: [
-            ...s.messages,
-            {
-              role: "assistant",
-              text: "I can't reach the AI service right now. Please try again in a moment.",
-            },
-          ],
+        updateLastAssistant(() => ({
+          role: "assistant",
+          text: "I can't reach the AI service right now. Please try again in a moment.",
         }));
       } finally {
-        set({ loading: false });
+        set({ loading: false, agentStatus: null });
       }
     },
 

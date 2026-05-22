@@ -1,6 +1,7 @@
 ﻿const DOMAIN = ".irakozehornet.com";
 const COOKIE_NAME = "hrnt_astro_off";
 const LOCAL_KEY = "hrnt_astro_off";
+const CONV_COOKIE = "hrnt_astro_conv";
 
 /** Read the off state from cross-domain cookie, falling back to localStorage */
 export function getAstroOff(): boolean {
@@ -33,6 +34,35 @@ function setAstroOffCookie(off: boolean): void {
   } else {
     document.cookie = `${COOKIE_NAME}=no; domain=${DOMAIN}; path=/; max-age=0; Secure; SameSite=Lax`;
   }
+}
+
+/** Get or create a persistent conversation ID (cross-domain cookie, 1 year) */
+export function getOrCreateConversationId(): string {
+  if (typeof window === "undefined") return "server";
+
+  const cookieMatch = document.cookie.match(new RegExp(`(?:^|;\\s*)${CONV_COOKIE}=([^;]*)`));
+  if (cookieMatch && cookieMatch[1]) return cookieMatch[1];
+
+  const newId = `astro_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+  document.cookie = `${CONV_COOKIE}=${newId}; domain=${DOMAIN}; path=/; max-age=31536000; Secure; SameSite=Lax`;
+
+  const sessionKey = "hrnt_astro_conversation_id";
+  const sessionId = sessionStorage.getItem(sessionKey);
+  if (sessionId) {
+    document.cookie = `${CONV_COOKIE}=${sessionId}; domain=${DOMAIN}; path=/; max-age=31536000; Secure; SameSite=Lax`;
+    return sessionId;
+  }
+
+  sessionStorage.setItem(sessionKey, newId);
+  return newId;
+}
+
+/** Reset conversation ID (on "New chat") — generates a new persistent ID */
+export function resetConversationId(): string {
+  if (typeof window === "undefined") return "server";
+
+  document.cookie = `${CONV_COOKIE}=; domain=${DOMAIN}; path=/; max-age=0; Secure; SameSite=Lax`;
+  return getOrCreateConversationId();
 }
 
 /** Read dock geometry from localStorage (site-specific, correct behavior) */

@@ -67,6 +67,7 @@ export interface AstroMessage {
   followUps?: string[];
   actions?: AstroAction[];
   showAddToCart?: boolean;
+  handoffMessage?: string;
 }
 
 /** Configuration provided by each site */
@@ -85,6 +86,7 @@ export interface AstroChatRequest {
   question: string;
   locale: string;
   site: AstroSite;
+  conversationId?: string;
   productContext: AstroProductContext | { name: string; category: string; selectedContext?: string; pageKind?: string; pathnameHint?: string };
   messages?: { role: "user" | "assistant"; text: string }[];
   cartItems?: { id?: string; slug?: string; name: string; category?: string; price?: number }[];
@@ -99,3 +101,13 @@ export interface AstroChatResponse {
   showAddToCart?: boolean;
   unavailable?: true;
 }
+
+/** Streaming event from the Astro API */
+export type AstroStreamEvent =
+  | { type: "token"; content: string }
+  | { type: "done"; answer: string; followUps?: string[]; links?: AstroLink[]; showAddToCart?: boolean; actions?: AstroAction[] }
+  | { type: "replace"; answer: string; followUps?: string[]; links?: AstroLink[]; showAddToCart?: boolean; actions?: AstroAction[] }
+  | { type: "agentStatus"; status: string }
+  | { type: "revision"; answer: string }
+  | { type: "handoff"; message: string }
+  | { type: "error"; message: string };

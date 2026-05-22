@@ -1,8 +1,8 @@
 export { createAstroStore } from "./store";
 export type { AstroStore, AstroStoreState, AstroStoreActions } from "./store";
-export type { AstroSite, AstroDockMode, AstroDockGeom, AstroProductContext, AstroLink, AstroMessage, AstroChatRequest, AstroChatResponse, AstroSiteConfig } from "./types";
-export { getAstroOff, setAstroOff, getAstroDockGeom, setAstroDockGeom } from "./cookies";
-export { sendAstroChat, sendAstroFeedback, saveAstroHistory } from "./api";
+export type { AstroSite, AstroDockMode, AstroDockGeom, AstroProductContext, AstroLink, AstroAction, AstroMessage, AstroChatRequest, AstroChatResponse, AstroStreamEvent, AstroSiteConfig } from "./types";
+export { getAstroOff, setAstroOff, getAstroDockGeom, setAstroDockGeom, getOrCreateConversationId, resetConversationId } from "./cookies";
+export { sendAstroChat, streamAstroChat, sendAstroFeedback, saveAstroHistory } from "./api";
 export { getKbPrompt } from "./knowledge";
 export { SHOP_KB_PROMPT } from "./knowledge/shop";
 export { PORTFOLIO_KB_PROMPT } from "./knowledge/portfolio";
