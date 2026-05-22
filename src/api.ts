@@ -40,6 +40,7 @@ export async function streamAstroChat(
 
   if (!res.ok) {
     const text = await res.text();
+    console.error(`[astro-stream] HTTP ${res.status}:`, text.slice(0, 200));
     throw new Error(text || `Request failed with status ${res.status}`);
   }
 

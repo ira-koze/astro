@@ -257,7 +257,8 @@ export function createAstroStore(
           },
           get().apiEndpoint,
         );
-      } catch {
+      } catch (err) {
+        console.error("[astro-stream] Error:", err instanceof Error ? err.message : err);
         updateLastAssistant(() => ({
           role: "assistant",
           text: "I can't reach the AI service right now. Please try again in a moment.",
