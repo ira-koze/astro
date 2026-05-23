@@ -213,7 +213,11 @@ export function createAstroStore(
             switch (event.type) {
               case "token":
                 if (!get().streaming) set({ streaming: true, agentStatus: null });
-                updateLastAssistant((msg) => ({ ...msg, text: (msg.text || "") + event.content }));
+                updateLastAssistant((msg) => {
+                  const raw = (msg.text || "") + event.content;
+                  const clean = raw.replace(/FOLLOW_UPS:.*$/im, "");
+                  return { ...msg, text: clean };
+                });
                 break;
               case "agentStatus":
                 set({ agentStatus: event.status });
